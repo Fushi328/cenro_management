@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Request Details{% endblock %}
+{% block content %}
+<div class="container">
+    <h1>Service Request #{{ request.id }}</h1>
+    <div class="detail-card">
+        <p><strong>Service Type:</strong> {{ request.get_service_type_display }}</p>
+        <p><strong>Consumer:</strong> {{ request.consumer.get_full_name }}</p>
+        <p><strong>Barangay:</strong> {{ request.barangay }}</p>
+        <p><strong>Address:</strong> {{ request.address }}</p>
+        <p><strong>Preferred Date:</strong> {{ request.preferred_date }}</p>
+        <p><strong>Preferred Time:</strong> {{ request.preferred_time }}</p>
+        <p><strong>Status:</strong> <span class="status-badge status-{{ request.status|lower }}">{{ request.get_status_display }}</span></p>
+        {% if request.fee_amount %}
+        <p><strong>Fee:</strong> ₱{{ request.fee_amount }}</p>
+        {% endif %}
+        {% if request.bawad_receipt %}
+        <p><strong>BAWAD Receipt:</strong> <a href="{{ request.bawad_receipt.url }}">View</a></p>
+        {% endif %}
+        {% if request.treasurer_receipt %}
+        <p><strong>Treasurer Receipt:</strong> <a href="{{ request.treasurer_receipt.url }}">View</a></p>
+        {% endif %}
+        {% if user.is_admin %}
+        <div class="action-buttons">
+            {% if not request.fee_amount %}
+            <a href="{% url 'services:compute_fee' request.pk %}" class="btn btn-warning">Compute Fee</a>
+            {% endif %}
+            {% if request.fee_amount and not request.payment_confirmed_at %}
+            <a href="{% url 'services:confirm_payment' request.pk %}" class="btn btn-info">Confirm Payment</a>
+            {% endif %}
+            {% if not request.schedule %}
+            <a href="{% url 'scheduling:create_schedule' request.pk %}" class="btn btn-success">Create Schedule</a>
+            {% endif %}
+            {% if request.status != 'COMPLETED' %}
+            <a href="{% url 'services:complete_request' request.pk %}" class="btn btn-primary">Mark Complete</a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

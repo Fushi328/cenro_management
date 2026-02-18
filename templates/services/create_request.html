@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Create Request{% endblock %}
+{% block content %}
+<div class="container">
+    <h1>Submit Service Request</h1>
+    <div class="form-card">
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <button type="submit" class="btn btn-primary">Submit Request</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

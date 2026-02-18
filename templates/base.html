@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}CENRO Management System{% endblock %} - EcoTrack</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <!-- Leaflet Map Library -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+    <!-- Turf.js for advanced geospatial operations (point-in-polygon) -->
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+</head>
+<body>
+    <!-- Top Navigation Bar -->
+    <header class="top-nav">
+        <div class="nav-container">
+            <a href="{% url 'dashboard:home' %}" class="logo">
+                <span class="logo-icon">🌍</span>
+                <div>
+                    <span class="logo-text">ECO-TRACK</span>
+                    <span class="logo-subtitle">Wetland Management</span>
+                </div>
+            </a>
+            <nav class="top-nav-links">
+                <a href="{% url 'dashboard:home' %}" class="nav-link {% if request.resolver_match.url_name == 'home' %}active{% endif %}">
+                    <span>🏠</span> Home
+                </a>
+                {% if not user.is_authenticated or not user.is_admin %}
+                <a href="{% url 'services:create_request' %}" class="nav-link {% if 'create_request' in request.resolver_match.url_name %}active{% endif %}">
+                    <span>📝</span> Request Service
+                </a>
+                <a href="{% url 'services:request_list' %}" class="nav-link {% if 'request_list' in request.resolver_match.url_name %}active{% endif %}">
+                    <span>📊</span> Track Status
+                </a>
+                {% endif %}
+                {% if user.is_authenticated and user.is_admin %}
+                <a href="{% url 'dashboard:admin_dashboard' %}" class="nav-link {% if 'admin' in request.resolver_match.url_name %}active{% endif %}">
+                    <span>⚙️</span> Admin Portal
+                </a>
+                {% endif %}
+                {% if not user.is_authenticated %}
+                <a href="{% url 'accounts:login' %}" class="nav-link">🔑 Login</a>
+                <a href="{% url 'accounts:consumer_register' %}" class="btn btn-primary">📋 Register</a>
+                {% else %}
+                <div class="user-section">
+                    <span class="user-name">👤 {{ user.get_full_name|default:user.username }}</span>
+                    <a href="{% url 'accounts:logout' %}" class="btn-logout">Logout</a>
+                </div>
+                {% endif %}
+            </nav>
+        </div>
+    </header>
+
+    {% if user.is_authenticated and user.is_admin %}
+    <!-- Admin Section Header -->
+    <div class="admin-header">
+        <div class="admin-header-content">
+            <div>
+                <h1 class="system-title">CENRO Management System</h1>
+                <p class="system-subtitle">Comprehensive Management for Environmental Services</p>
+            </div>
+            <div class="admin-actions">
+                <button class="btn-export" onclick="exportData()">
+                    <span>📥</span> Export Data
+                </button>
+                <a href="{% url 'scheduling:schedule_list' %}" class="btn-operations">
+                    <span>🚚</span> Operations
+                </a>
+            </div>
+        </div>
+        
+        <!-- Primary Admin Navigation Tabs -->
+        <nav class="admin-nav-tabs">
+            <a href="{% url 'dashboard:admin_dashboard' %}" class="admin-tab {% if request.resolver_match.url_name == 'admin_dashboard' %}active{% endif %}">
+                <span>📊</span> Dashboard
+            </a>
+            <a href="{% url 'dashboard:admin_requests' %}" class="admin-tab {% if 'admin_requests' in request.resolver_match.url_name %}active{% endif %}">
+                <span>📋</span> Requests
+            </a>
+            <a href="{% url 'dashboard:admin_membership' %}" class="admin-tab {% if 'admin_membership' in request.resolver_match.url_name %}active{% endif %}">
+                <span>👥</span> Membership
+            </a>
+            <a href="{% url 'dashboard:admin_computation' %}" class="admin-tab {% if 'admin_computation' in request.resolver_match.url_name %}active{% endif %}">
+                <span>💰</span> Computation
+            </a>
+            <a href="{% url 'dashboard:admin_declogging_app' %}" class="admin-tab {% if 'admin_declogging_app' in request.resolver_match.url_name %}active{% endif %}">
+                <span>📄</span> Declogging App
+            </a>
+        </nav>
+    </div>
+    {% endif %}
+
+    <!-- Main Content -->
+    <main class="main-content">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-content">
+            <div class="footer-section">
+                <div class="footer-logo">
+                    <span class="logo-icon">🌿</span>
+                    <span class="logo-text">EcoTrack</span>
+                </div>
+                <p>A Comprehensive Management System for CENRO in Bayawan City. Streamlining environmental services for a cleaner future.</p>
+            </div>
+            <div class="footer-section">
+                <h4>Services</h4>
+                <ul>
+                    <li>Septage Desludging</li>
+                    <li>Waste Collection</li>
+                    <li>Environmental Permits</li>
+                    <li>Complaint Filing</li>
+                </ul>
+            </div>
+            <div class="footer-section">
+                <h4>Contact</h4>
+                <p>CENRO Office, Bayawan City</p>
+                <p>(035) 123-4567</p>
+                <p>cenro@bayawancity.gov.ph</p>
+            </div>
+            <div class="footer-section">
+                <h4>Legal</h4>
+                <ul>
+                    <li><a href="#">Privacy Policy</a></li>
+                    <li><a href="#">Terms of Service</a></li>
+                    <li><a href="#">Transparency Seal</a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>© 2026 CENRO Bayawan City. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- Toast Notification Popup -->
+    {% if messages %}
+    <div id="toast-container" class="toast-container">
+        {% for message in messages %}
+        <div class="toast toast-{% if message.tags %}{{ message.tags }}{% else %}info{% endif %}" role="alert" data-auto-dismiss="true">
+            <span class="toast-icon">{% if message.tags == 'success' %}✓{% elif message.tags == 'error' or message.tags == 'danger' %}✕{% else %}!{% endif %}</span>
+            <span class="toast-message">{{ message }}</span>
+            <button class="toast-close" onclick="this.parentElement.remove()" aria-label="Close">×</button>
+        </div>
+        {% endfor %}
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const toasts = document.querySelectorAll('.toast[data-auto-dismiss="true"]');
+            toasts.forEach(function(toast) {
+                setTimeout(function() {
+                    toast.style.animation = 'toastSlideOut 0.3s ease forwards';
+                    setTimeout(function() { toast.remove(); }, 300);
+                }, 4000);
+            });
+        });
+    </script>
+    {% endif %}
+
+    <script>
+        function exportData() {
+            alert('Export functionality will be implemented');
+        }
+    </script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

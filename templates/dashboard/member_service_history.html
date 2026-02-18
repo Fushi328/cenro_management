@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Member Service History{% endblock %}
+{% block content %}
+<div class="card">
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+            <h3 class="card-title">Member Service History</h3>
+            <p class="card-subtitle">{{ consumer.get_full_name|default:consumer.username }}</p>
+        </div>
+        <button class="btn-export" onclick="printHistory()">
+            <span>🖨️</span> Print History Report
+        </button>
+    </div>
+    
+    <div class="member-info">
+        <div class="info-item">
+            <strong>Name:</strong> {{ consumer.get_full_name|default:consumer.username }}
+        </div>
+        <div class="info-item">
+            <strong>Barangay:</strong> {{ consumer.consumer_profile.barangay|default:"-" }}
+        </div>
+        <div class="info-item">
+            <strong>Remaining Balance (4yr Quota):</strong> {{ remaining_balance|floatformat:2 }} m³ / 5 m³
+        </div>
+        <div class="info-item">
+            <strong>Total Used:</strong> {{ total_used|floatformat:2 }} m³
+        </div>
+    </div>
+    
+    <div class="table-responsive">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Measurement Used</th>
+                    <th>Remaining Balance (4yr Quota)</th>
+                    <th>Billing</th>
+                    <th>Rep.</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for req in service_requests %}
+                <tr>
+                    <td>{{ req.preferred_date }}</td>
+                    <td>{{ req.cubic_meters|default:"0" }} m³</td>
+                    <td>{{ remaining_balance|floatformat:2 }} m³ / 5 m³</td>
+                    <td>{% if req.fee_amount %}Paid (₱{{ req.fee_amount }}){% else %}Free (Member){% endif %}</td>
+                    <td>Self</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5">No service history found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+function printHistory() {
+    window.print();
+}
+</script>
+
+<style>
+.member-info {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-bottom: 25px;
+    padding: 20px;
+    background: var(--light-gray);
+    border-radius: 8px;
+}
+
+.info-item {
+    font-size: 14px;
+}
+</style>
+{% endblock %}

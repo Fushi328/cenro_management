@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Create Schedule{% endblock %}
+{% block content %}
+<div class="container">
+    <h1>Create Schedule for Request #{{ request.id }}</h1>
+    <div class="form-card">
+        <form method="post">
+            {% csrf_token %}
+            <div class="form-group">
+                <label>Barangay</label>
+                <input type="text" name="barangay" value="{{ request.barangay }}" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label>Service Date</label>
+                <input type="date" name="service_date" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label>Service Time</label>
+                <input type="time" name="service_time" value="{{ request.preferred_time }}" class="form-control" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Create Schedule</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

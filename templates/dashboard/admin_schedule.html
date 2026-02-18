@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}Schedule by Barangay{% endblock %}
+{% block content %}
+<!-- Secondary Navigation Tabs -->
+<nav class="secondary-nav-tabs">
+    <a href="{% url 'dashboard:admin_requests' %}?tab=pending" class="secondary-tab">Pending Requests</a>
+    <a href="{% url 'dashboard:admin_requests' %}?tab=approved" class="secondary-tab">Approved</a>
+    <a href="{% url 'dashboard:admin_schedule' %}" class="secondary-tab active">Schedule</a>
+    <a href="{% url 'dashboard:admin_requests' %}?tab=completed" class="secondary-tab">Completed</a>
+</nav>
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Schedule by Barangay</h3>
+        <p class="card-subtitle">Track progress toward 10-person limit per barangay</p>
+    </div>
+    
+    <div class="barangay-schedule-grid">
+        {% for detail in barangay_details %}
+        <div class="barangay-card">
+            <h4>{{ detail.barangay }}</h4>
+            <div class="progress-info">
+                <span class="progress-text">{{ detail.count }} of 10 customers ({{ detail.percentage|floatformat:0 }}%)</span>
+            </div>
+            <div class="progress-bar-container">
+                <div class="progress-bar" style="width: {{ detail.percentage }}%;">
+                    {{ detail.percentage|floatformat:0 }}%
+                </div>
+            </div>
+            <div class="customer-list">
+                {% for schedule in detail.schedules %}
+                <div class="customer-item">
+                    <span class="checkmark">✓</span>
+                    {{ schedule.service_request.consumer.get_full_name|default:schedule.service_request.consumer.username }}
+                </div>
+                {% endfor %}
+            </div>
+            <div class="barangay-status">
+                {% if detail.is_full %}
+                <button class="btn btn-success" disabled>Ready for Deployment</button>
+                {% else %}
+                <button class="btn btn-light" disabled>Awaiting Capacity</button>
+                {% endif %}
+            </div>
+        </div>
+        {% empty %}
+        <div class="no-data">
+            <p>No scheduled services found.</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<style>
+.barangay-schedule-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.barangay-card {
+    background: var(--white);
+    border: 1px solid var(--medium-gray);
+    border-radius: 8px;
+    padding: 20px;
+}
+
+.barangay-card h4 {
+    margin-bottom: 15px;
+    color: var(--dark-gray);
+}
+
+.progress-info {
+    margin-bottom: 10px;
+}
+
+.progress-text {
+    font-size: 14px;
+    color: var(--text-gray);
+}
+
+.customer-list {
+    margin: 15px 0;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.customer-item {
+    padding: 8px 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+}
+
+.checkmark {
+    color: var(--primary-green);
+    font-weight: bold;
+}
+
+.barangay-status {
+    margin-top: 15px;
+}
+
+.btn-light {
+    background: var(--light-gray);
+    color: var(--text-gray);
+    border: 1px solid var(--medium-gray);
+}
+</style>
+{% endblock %}

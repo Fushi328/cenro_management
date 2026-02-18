@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Computation Result{% endblock %}
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Cost Computation Result</h3>
+    </div>
+    
+    <div class="computation-layout">
+        <div class="computation-input">
+            <h4>Service Details</h4>
+            <div class="result-details">
+                <p><strong>Category:</strong> {{ category }}</p>
+                <p><strong>Location:</strong> {{ location }}</p>
+                {% if location == 'Outside Bayawan' %}
+                <p><strong>Distance:</strong> {{ distance }} km</p>
+                {% endif %}
+                <p><strong>Cubic Meters:</strong> {{ cubic_meters }} m³</p>
+                <p><strong>Prepared By:</strong> {{ prepared_by }}</p>
+            </div>
+        </div>
+        
+        <div class="computation-result">
+            <h4>Final Charges Breakdown</h4>
+            <div class="charges-summary">
+                <div class="charge-item">
+                    <span>Tipping Fee (₱500/m³)</span>
+                    <span>₱{{ tipping_fee|floatformat:2 }}</span>
+                </div>
+                <div class="charge-item">
+                    <span>Inspection Fee</span>
+                    <span>₱{{ inspection_fee|floatformat:2 }}</span>
+                </div>
+                {% if location == 'Outside Bayawan' %}
+                <div class="charge-item">
+                    <span>Distance Cost ({{ distance }}km × 2 × ₱20)</span>
+                    <span>₱{{ distance_cost|floatformat:2 }}</span>
+                </div>
+                <div class="charge-item">
+                    <span>Wear and Tear (20%)</span>
+                    <span>₱{{ wear_tear|floatformat:2 }}</span>
+                </div>
+                <div class="charge-item">
+                    <span>Meals & Transportation</span>
+                    <span>₱500.00</span>
+                </div>
+                {% endif %}
+                <div class="charge-item total">
+                    <span>Total Charges</span>
+                    <span>₱{{ total|floatformat:2 }}</span>
+                </div>
+                <div class="prepared-by">
+                    <small>Prepared by: {{ prepared_by }}</small>
+                </div>
+                <form method="post" action="{% url 'dashboard:generate_receipt' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="total" value="{{ total }}">
+                    <input type="hidden" name="category" value="{{ category }}">
+                    <input type="hidden" name="location" value="{{ location }}">
+                    <input type="hidden" name="cubic_meters" value="{{ cubic_meters }}">
+                    <input type="hidden" name="prepared_by" value="{{ prepared_by }}">
+                    <button type="submit" class="btn btn-success" style="width: 100%; margin-top: 20px;">
+                        <span>🖨️</span> Generate Receipt for Treasurer
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.result-details p {
+    margin-bottom: 15px;
+    padding: 10px;
+    background: var(--light-gray);
+    border-radius: 6px;
+}
+</style>
+{% endblock %}

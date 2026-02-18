@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Login{% endblock %}
+{% block content %}
+<div class="auth-container">
+    <div class="auth-card">
+        <h1>🌿 CENRO Management System</h1>
+        <h2>City Environmental and Natural Resources Office</h2>
+        <p class="subtitle">Bayawan</p>
+        <form method="post" class="auth-form">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <button type="submit" class="btn btn-primary">Login</button>
+        </form>
+        <p class="auth-link">
+            Don't have an account? <a href="{% url 'accounts:consumer_register' %}">Register</a>
+        </p>
+    </div>
+</div>
+{% endblock %}

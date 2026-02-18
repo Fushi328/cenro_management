@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}Declogging Service Application{% endblock %}
+{% block content %}
+<div class="card">
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+            <h3 class="card-title">Declogging Service Application</h3>
+        </div>
+        <button class="btn-export" onclick="printApplication()">
+            <span>🖨️</span> Print Application Form
+        </button>
+    </div>
+    
+    <div class="application-form">
+        <div class="form-header">
+            <p style="text-align: center; font-weight: 600;">REPUBLIC OF THE PHILIPPINES</p>
+            <p style="text-align: center;">Province of Negros Oriental</p>
+            <p style="text-align: center; font-weight: 600;">CITY OF BAYAWAN</p>
+            <p style="text-align: center; font-weight: 600; border-bottom: 2px solid var(--primary-green); padding-bottom: 5px; margin: 10px 0;">
+                CITY ENVIRONMENT AND NATURAL RESOURCES OFFICE
+            </p>
+        </div>
+        
+        <div class="form-title">
+            <h2 style="text-align: center; text-decoration: underline; margin: 20px 0;">
+                APPLICATION FOR DECLOGGING SERVICE
+            </h2>
+        </div>
+        
+        <div class="form-content">
+            <p style="margin-bottom: 20px;"><strong>Date:</strong> _______________</p>
+            
+            <p style="margin-bottom: 20px;">TO WHOM IT MAY CONCERN:</p>
+            
+            <p style="margin-bottom: 20px; line-height: 1.8;">
+                I, <strong>_______________</strong>, of legal age, Filipino, and a resident of Barangay 
+                <strong>_______________</strong>, Bayawan City, hereby formally request the assistance of the CENRO 
+                personnel for the declogging of my septic system located at 
+                <strong>_______________</strong>.
+            </p>
+            
+            <p style="margin-bottom: 30px; line-height: 1.8;">
+                I understand that this service is subject to the standard operating procedures and fees 
+                established by the City Government of Bayawan.
+            </p>
+            
+            <div class="signature-section" style="display: flex; justify-content: space-between; margin-top: 50px;">
+                <div style="width: 45%;">
+                    <div style="border-top: 1px solid var(--dark-gray); padding-top: 5px; margin-bottom: 40px;">
+                        <p style="text-align: center;">APPLICANT'S SIGNATURE</p>
+                    </div>
+                </div>
+                <div style="width: 45%;">
+                    <div style="border-top: 1px solid var(--dark-gray); padding-top: 5px; margin-bottom: 40px;">
+                        <p style="text-align: center;">CENRO PERSONNEL / OFFICER</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function printApplication() {
+    window.print();
+}
+</script>
+
+<style>
+.application-form {
+    padding: 30px;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.form-header {
+    margin-bottom: 30px;
+}
+
+.form-content {
+    line-height: 1.8;
+}
+
+@media print {
+    .card-header button,
+    .top-nav,
+    .admin-header,
+    .admin-nav-tabs,
+    .footer {
+        display: none;
+    }
+    
+    .main-content {
+        padding: 0;
+    }
+    
+    .card {
+        box-shadow: none;
+        border: none;
+    }
+}
+</style>
+{% endblock %}

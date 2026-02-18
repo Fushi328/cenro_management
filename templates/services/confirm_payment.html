@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Confirm Payment{% endblock %}
+{% block content %}
+<div class="container">
+    <h1>Confirm Payment for Request #{{ request.id }}</h1>
+    <div class="form-card">
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="form-group">
+                <label>Treasurer's Receipt</label>
+                <input type="file" name="treasurer_receipt" class="form-control" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Confirm Payment</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

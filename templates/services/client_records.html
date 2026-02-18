@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Client Records{% endblock %}
+{% block content %}
+<div class="container">
+    <h1>Client Records</h1>
+    <div class="filter-card">
+        <form method="get" class="filter-form">
+            <input type="text" name="search" placeholder="Search by name..." value="{{ request.GET.search }}" class="form-control">
+            <select name="barangay" class="form-control">
+                <option value="">All Barangays</option>
+                {% for barangay in barangays %}
+                <option value="{{ barangay }}" {% if request.GET.barangay == barangay %}selected{% endif %}>{{ barangay }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-primary">Filter</button>
+        </form>
+    </div>
+    <div class="table-card">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Barangay</th>
+                    <th>Address</th>
+                    <th>Last Declogging</th>
+                    <th>Next Declogging</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in consumer_data %}
+                <tr>
+                    <td>{{ item.consumer.get_full_name }}</td>
+                    <td>{{ item.consumer.consumer_profile.barangay }}</td>
+                    <td>{{ item.consumer.consumer_profile.address }}</td>
+                    <td>{{ item.last_declogging|default:"Never" }}</td>
+                    <td>{{ item.next_declogging|default:"-" }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5">No clients found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

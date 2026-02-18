@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Register Staff{% endblock %}
+{% block content %}
+<div class="container">
+    <h1>Register Staff Account</h1>
+    <form method="post" class="form-card">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit" class="btn btn-primary">Create Staff Account</button>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Assign Staff{% endblock %}
+{% block content %}
+<div class="container">
+    <h1>Assign Staff to Schedule</h1>
+    <div class="form-card">
+        <form method="post">
+            {% csrf_token %}
+            <div class="form-group">
+                <label>Select Staff</label>
+                <select name="staff_id" class="form-control" required>
+                    <option value="">-- Select Staff --</option>
+                    {% for staff in staff_members %}
+                    <option value="{{ staff.id }}">{{ staff.get_full_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary">Assign Staff</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

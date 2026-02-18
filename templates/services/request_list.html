@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Service Requests{% endblock %}
+{% block content %}
+<div class="container">
+    <h1>Service Requests</h1>
+    {% if user.is_consumer %}
+    <a href="{% url 'services:create_request' %}" class="btn btn-primary">+ New Request</a>
+    {% endif %}
+    <div class="table-card">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Service Type</th>
+                    <th>Barangay</th>
+                    <th>Consumer</th>
+                    <th>Preferred Date</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for req in requests %}
+                <tr>
+                    <td>{{ req.id }}</td>
+                    <td>{{ req.get_service_type_display }}</td>
+                    <td>{{ req.barangay }}</td>
+                    <td>{{ req.consumer.get_full_name }}</td>
+                    <td>{{ req.preferred_date }}</td>
+                    <td><span class="status-badge status-{{ req.status|lower }}">{{ req.get_status_display }}</span></td>
+                    <td>
+                        <a href="{% url 'services:request_detail' req.pk %}" class="btn btn-sm">View</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7">No requests found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
