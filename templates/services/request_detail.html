@@ -193,6 +193,13 @@
                 <button type="submit" class="btn btn-green">Mark Completed</button>
             </form>
             {% endif %}
+
+            {% if sr.treasurer_receipt and sr.status == "AWAITING_PAYMENT" %}
+            <form method="post" action="{% url 'dashboard:confirm_payment' sr.pk %}" class="inline-form">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-green">Confirm Payment</button>
+            </form>
+            {% endif %}
         {% endif %}
 
         {% if sr.consumer == user %}

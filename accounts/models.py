@@ -28,7 +28,8 @@ class User(AbstractUser):
         super().save(*args, **kwargs)
 
     def is_admin(self) -> bool:
-        return self.role == self.Role.ADMIN
+        """True if user is Admin role or Django superuser (super admin)."""
+        return self.role == self.Role.ADMIN or self.is_superuser
 
     def is_staff_member(self) -> bool:
         return self.role == self.Role.STAFF

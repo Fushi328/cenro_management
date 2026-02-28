@@ -13,7 +13,7 @@
                 <p><strong>Category:</strong> {{ category }}</p>
                 <p><strong>Location:</strong> {{ location }}</p>
                 {% if location == 'Outside Bayawan' %}
-                <p><strong>Distance:</strong> {{ distance }} km</p>
+                <p><strong>Distance from CENRO Office:</strong> {{ distance }} km</p>
                 {% endif %}
                 <p><strong>Cubic Meters:</strong> {{ cubic_meters }} m³</p>
                 <p><strong>Prepared By:</strong> {{ prepared_by }}</p>
@@ -33,7 +33,7 @@
                 </div>
                 {% if location == 'Outside Bayawan' %}
                 <div class="charge-item">
-                    <span>Distance Cost ({{ distance }}km × 2 × ₱20)</span>
+                    <span>Distance Cost (beyond 20 km from CENRO Office)</span>
                     <span>₱{{ distance_cost|floatformat:2 }}</span>
                 </div>
                 <div class="charge-item">

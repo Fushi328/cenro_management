@@ -94,6 +94,11 @@ class ServiceRequestStep2Form(forms.Form):
         label="Client Signature (upload image)",
     )
 
+    def clean_request_date(self):
+        from .business_days import next_business_day
+        d = self.cleaned_data["request_date"]
+        return next_business_day(d)
+
     def clean_contact_number(self):
         num = self.cleaned_data["contact_number"]
         cleaned = re.sub(r"[\s\-()]", "", num)

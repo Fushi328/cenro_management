@@ -20,8 +20,8 @@
                             <label for="id_location" class="form-label">Location</label>
                             {{ form.location }}
                         </div>
-                        <div class="mb-3" id="distance_field" style="display: none;">
-                            <label for="id_distance_km" class="form-label">Distance (km)</label>
+                        <div class="mb-3">
+                            <label for="id_distance_km" class="form-label">Distance from CENRO Office (km)</label>
                             {{ form.distance_km }}
                         </div>
                         <div class="mb-3">
@@ -52,9 +52,19 @@
                             <span>₱{{ computation_result.fixed_trucking|floatformat:2 }}</span>
                         </div>
                         <div class="charge-item">
-                            <span>Desludging Fee (₱500/m³)</span>
+                            <span>Desludging Fee</span>
                             <span>₱{{ computation_result.desludging_fee|floatformat:2 }}</span>
                         </div>
+                        {% if computation_result.desludging_breakdown %}
+                        <div class="charge-subitems">
+                            {% for line in computation_result.desludging_breakdown %}
+                            <div class="charge-subitem">
+                                <span>{{ line.label }}</span>
+                                <span>₱{{ line.amount|floatformat:2 }}</span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
                         <div class="charge-item">
                             <span>Inspection Fee</span>
                             <span>₱{{ computation_result.inspection_fee|floatformat:2 }}</span>
@@ -65,7 +75,7 @@
                         </div>
                         {% if computation_result.location == 'outside' %}
                         <div class="charge-item">
-                            <span>Distance Cost (excess km × 2 × ₱20)</span>
+                            <span>Distance Cost (beyond 20 km from CENRO Office)</span>
                             <span>₱{{ computation_result.distance_cost|floatformat:2 }}</span>
                         </div>
                         <div class="charge-item">
@@ -93,17 +103,14 @@
 </div>
 
 <script>
-// Show/hide distance field based on location
+// Show/hide meals field based on location
 const locationSelect = document.getElementById('id_location');
 if (locationSelect) {
     locationSelect.addEventListener('change', function() {
-        const distanceField = document.getElementById('distance_field');
         const mealsField = document.getElementById('meals_field');
         if (this.value === 'outside') {
-            distanceField.style.display = 'block';
             mealsField.style.display = 'block';
         } else {
-            distanceField.style.display = 'none';
             mealsField.style.display = 'none';
         }
     });
@@ -127,6 +134,19 @@ function printReceipt() {
     justify-content: space-between;
     padding: 12px 0;
     border-bottom: 1px solid var(--medium-gray);
+}
+
+.charge-subitems {
+    margin-top: -8px;
+    margin-bottom: 8px;
+}
+
+.charge-subitem {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    color: var(--text-gray);
+    padding: 4px 0;
 }
 
 .charge-item.total {

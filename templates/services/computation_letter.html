@@ -18,13 +18,20 @@
     .breakdown-table td { padding: 8px 12px; border-bottom: 1px solid #eee; }
     .breakdown-table td:last-child { text-align: right; font-weight: 500; }
     .breakdown-table tr.total td { border-top: 2px solid #2d3142; font-weight: 700; font-size: 16px; color: #1abc9c; }
+    .breakdown-table tr.subtotal td { font-weight: 600; color: #555; }
     .breakdown-table tr.free td { color: #27ae60; font-weight: 700; }
-    .print-bar { display: flex; gap: 12px; justify-content: center; margin-top: 24px; }
-    .btn { padding: 10px 24px; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block; }
-    .btn-primary { background: #1abc9c; color: white; }
-    .btn-secondary { background: #e0e0e0; color: #2d3142; }
+    .print-bar { display: flex; gap: 12px; justify-content: center; margin-top: 24px; flex-wrap: wrap; }
+    .btn { padding: 10px 24px; border: 2px solid transparent; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block; }
+    .btn-primary { background: #1abc9c; color: white; border-color: #1abc9c; }
+    .btn-primary:hover { background: #16a085; border-color: #16a085; }
+    .btn-download { background: #fff; color: #1abc9c; border-color: #1abc9c; }
+    .btn-download:hover { background: #e8f8f5; }
+    .btn-edit { background: #3498db; color: white; border-color: #3498db; }
+    .btn-edit:hover { background: #2980b9; border-color: #2980b9; color: white; }
+    .btn-secondary { background: #e0e0e0; color: #2d3142; border-color: #e0e0e0; }
+    .btn-secondary:hover { background: #d0d0d0; }
     @media print {
-        .print-bar, header, footer, .top-nav, .admin-header, .toast-container { display: none !important; }
+        .print-bar, .btn-edit, header, footer, .top-nav, .admin-header, .toast-container { display: none !important; }
         .letter-container { margin: 0; padding: 0; }
         .letter-card { border: none; box-shadow: none; padding: 20px; }
     }
@@ -53,7 +60,7 @@
                 <tr><td>Address</td><td>{{ sr.address }}, {{ sr.barangay }}</td></tr>
                 <tr><td>BAWAD Member</td><td>{% if sr.connected_to_bawad %}Yes{% else %}No{% endif %}</td></tr>
                 <tr><td>Volume</td><td>{{ comp.cubic_meters }} cubic meters</td></tr>
-                {% if comp.distance_km %}<tr><td>Distance</td><td>{{ comp.distance_km }} km</td></tr>{% endif %}
+                {% if comp.distance_km %}<tr><td>Distance from CENRO Office</td><td>{{ comp.distance_km }} km</td></tr>{% endif %}
                 <tr><td>Trips</td><td>{{ comp.trips }}</td></tr>
             </table>
         </div>
@@ -62,8 +69,11 @@
             <h4>Declogging Fee Breakdown</h4>
             <table class="breakdown-table">
                 <tr><td>Fixed Trucking Fee</td><td>&#8369;{{ comp.fixed_trucking }}</td></tr>
-                <tr><td>Desludging Fee ({{ comp.cubic_meters }} m&sup3;{% if comp.trips > 1 %}, {{ comp.trips }} trips{% endif %})</td><td>&#8369;{{ comp.desludging_fee }}</td></tr>
-                {% if comp.distance_charge %}<tr><td>Distance Charge (excess km)</td><td>&#8369;{{ comp.distance_charge }}</td></tr>{% endif %}
+                {% for line in comp.get_desludging_breakdown %}
+                <tr><td>{{ line.label }}</td><td>&#8369;{{ line.amount }}</td></tr>
+                {% endfor %}
+                <tr class="subtotal"><td>Desludging Fee (subtotal)</td><td>&#8369;{{ comp.desludging_fee }}</td></tr>
+                {% if comp.distance_charge %}<tr><td>Distance Charge (beyond 20 km from CENRO Office)</td><td>&#8369;{{ comp.distance_charge }}</td></tr>{% endif %}
                 {% if comp.wear_charge %}<tr><td>Wear &amp; Tear (20%)</td><td>&#8369;{{ comp.wear_charge }}</td></tr>{% endif %}
                 <tr><td>Meals &amp; Transportation ({{ comp.personnel_count }} personnel)</td><td>&#8369;{{ comp.meals_transport_charge }}</td></tr>
                 <tr><td>Inspection Fee</td><td>&#8369;{{ comp.inspection_charge }}</td></tr>
@@ -84,7 +94,11 @@
     </div>
 
     <div class="print-bar">
-        <button class="btn btn-primary" onclick="window.print()">Print / Download PDF</button>
+        {% if user.is_admin or user.is_staff_member %}
+        <a href="{% url 'services:edit_computation' sr.pk %}" class="btn btn-edit">Edit Computation</a>
+        {% endif %}
+        <button type="button" class="btn btn-primary" onclick="window.print()">Print</button>
+        <a href="{% url 'services:download_computation_pdf' sr.pk %}" class="btn btn-download" download>Download PDF</a>
         <a href="{% url 'services:request_detail' sr.pk %}" class="btn btn-secondary">Back to Request</a>
     </div>
 </div>

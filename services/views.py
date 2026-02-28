@@ -1,13 +1,16 @@
-from datetime import datetime
+from datetime import date as date_cls, datetime, timedelta
 from decimal import Decimal
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
-from django.http import HttpResponseRedirect, JsonResponse
+from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.template.loader import get_template
 from django.urls import reverse
 from django.utils import timezone
+from django.views.decorators.csrf import ensure_csrf_cookie
+import io
 import json
 import time
 
@@ -21,6 +24,7 @@ from .forms import (
     ServiceRequestStep2Form,
     ServiceRequestStep3Form,
 )
+from .business_days import next_business_day, ph_holidays
 from .location import detect_barangay_for_point
 from .geocode import address_in_bayawan, extract_barangay, reverse_geocode_osm
 from .models import CompletionInfo, InspectionDetail, Notification, ServiceRequest
@@ -147,7 +151,6 @@ def create_request(request):
     if step == 1:
         form = ServiceRequestStep1Form(initial={"service_type": form_data.get("service_type", "")})
     elif step == 2:
-        from datetime import date as date_cls
         default_contact = ""
         try:
             default_contact = request.user.consumer_profile.mobile_number or ""
@@ -155,7 +158,7 @@ def create_request(request):
             pass
         form = ServiceRequestStep2Form(initial={
             "client_name": form_data.get("client_name", request.user.get_full_name()),
-            "request_date": form_data.get("request_date", str(date_cls.today())),
+            "request_date": form_data.get("request_date", str(next_business_day())),
             "contact_number": form_data.get("contact_number", default_contact),
             "connected_to_bawad": form_data.get("connected_to_bawad", "NO"),
             "public_private": form_data.get("public_private", "PRIVATE"),
@@ -185,11 +188,18 @@ def create_request(request):
             owner_profile["gps_latitude"] = None
             owner_profile["gps_longitude"] = None
 
+    holidays_json = "[]"
+    if step == 2:
+        today = date_cls.today()
+        all_holidays = ph_holidays(today.year) | ph_holidays(today.year + 1)
+        holidays_json = json.dumps(sorted(d.isoformat() for d in all_holidays))
+
     context = {
         "form": form,
         "step": step,
         "form_data": form_data,
         "owner_profile_json": json.dumps(owner_profile),
+        "holidays_json": holidays_json,
     }
     return render(request, "services/create_request_wizard.html", context)
 
@@ -428,24 +438,32 @@ def submit_completion(request, pk):
 def _auto_generate_computation(service_request, admin_user):
     """Create or update ServiceComputation after completion info is saved."""
     from dashboard.models import ServiceComputation
+    from .location import distance_from_cenro
 
     completion = getattr(service_request, "completion_info", None)
     is_outside = not service_request.is_within_bayawan
 
     personnel = completion.personnel_count if completion else 4
 
+    dist = Decimal("0")
+    if service_request.gps_latitude and service_request.gps_longitude:
+        km = distance_from_cenro(
+            float(service_request.gps_latitude),
+            float(service_request.gps_longitude),
+        )
+        dist = Decimal(str(round(km, 2)))
+
     comp, _ = ServiceComputation.objects.update_or_create(
         service_request=service_request,
         defaults={
             "is_outside_bayawan": is_outside,
             "cubic_meters": service_request.cubic_meters or Decimal("5"),
-            "distance_km": Decimal("0"),
+            "distance_km": dist,
             "trips": 1,
             "personnel_count": personnel,
             "prepared_by": admin_user,
         },
     )
-    # save triggers calculate_charges
     comp.save()
 
     service_request.fee_amount = comp.total_charge
@@ -486,6 +504,85 @@ def view_computation(request, pk):
     })
 
 
+@login_required
+def download_computation_pdf(request, pk):
+    """Generate and return the computation letter as a PDF download."""
+    service_request = get_object_or_404(ServiceRequest, pk=pk)
+    if (
+        not request.user.is_admin()
+        and not request.user.is_staff_member()
+        and service_request.consumer != request.user
+    ):
+        messages.error(request, "Permission denied.")
+        return redirect("services:request_list")
+
+    computation = getattr(service_request, "computation", None)
+    if not computation:
+        messages.warning(request, "Computation not yet available.")
+        return redirect("services:request_detail", pk=pk)
+
+    try:
+        from xhtml2pdf import pisa
+    except ImportError:
+        messages.error(
+            request,
+            "PDF download is not available. Install xhtml2pdf: pip install xhtml2pdf",
+        )
+        return redirect("services:view_computation", pk=pk)
+
+    template = get_template("services/computation_letter_pdf.html")
+    html = template.render({"sr": service_request, "comp": computation})
+    result = io.BytesIO()
+    pdf = pisa.pisaDocument(
+        io.BytesIO(html.encode("utf-8")),
+        result,
+        encoding="utf-8",
+    )
+    if pdf.err:
+        messages.error(request, "PDF generation failed.")
+        return redirect("services:view_computation", pk=pk)
+
+    filename = f"computation-ECO-{service_request.created_at.year}-{service_request.id:03d}.pdf"
+    response = HttpResponse(result.getvalue(), content_type="application/pdf")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
+
+
+@login_required
+@role_required("ADMIN", "STAFF")
+def edit_computation(request, pk):
+    """Edit computation (admin/staff only). Recalculates charges on save."""
+    from dashboard.forms import ServiceComputationForm
+    from dashboard.models import ServiceComputation
+
+    service_request = get_object_or_404(ServiceRequest, pk=pk)
+    computation = getattr(service_request, "computation", None)
+    if not computation:
+        messages.warning(request, "Computation not yet available.")
+        return redirect("services:request_detail", pk=pk)
+
+    form = ServiceComputationForm(instance=computation)
+    form.fields.pop("charge_category", None)
+    form.fields.pop("trips", None)
+
+    if request.method == "POST":
+        form = ServiceComputationForm(request.POST, instance=computation)
+        form.fields.pop("charge_category", None)
+        form.fields.pop("trips", None)
+        if form.is_valid():
+            form.save()
+            service_request.fee_amount = computation.total_charge
+            service_request.save(update_fields=["fee_amount"])
+            messages.success(request, "Computation updated. Charges recalculated.")
+            return redirect("services:view_computation", pk=pk)
+
+    return render(request, "services/computation_edit.html", {
+        "form": form,
+        "sr": service_request,
+        "comp": computation,
+    })
+
+
 # ---------------------------------------------------------------------------
 # Customer receipt upload
 # ---------------------------------------------------------------------------
@@ -500,10 +597,11 @@ def upload_receipt(request, pk):
     if request.method == "POST":
         receipt = request.FILES.get("treasurer_receipt")
         if receipt:
+            # Only attach the receipt and move to Awaiting Payment.
+            # Actual payment approval will be done by an admin.
             service_request.treasurer_receipt = receipt
-            service_request.payment_confirmed_at = timezone.now()
-            service_request.status = ServiceRequest.Status.PAID
-            service_request.save()
+            service_request.status = ServiceRequest.Status.AWAITING_PAYMENT
+            service_request.save(update_fields=["treasurer_receipt", "status"])
 
             admin_users = User.objects.filter(role=User.Role.ADMIN)
             for admin in admin_users:
@@ -513,7 +611,7 @@ def upload_receipt(request, pk):
                     notification_type=Notification.NotificationType.PAYMENT_UPLOADED,
                     related_request=service_request,
                 )
-            messages.success(request, "Receipt uploaded successfully.")
+            messages.success(request, "Receipt uploaded successfully. Waiting for admin verification.")
         else:
             messages.error(request, "Please select a file to upload.")
         return redirect("services:request_detail", pk=pk)
@@ -573,5 +671,53 @@ def mark_notification_read(request, pk):
     notif.is_read = True
     notif.save()
     if notif.related_request:
-        return redirect("services:request_detail", pk=notif.related_request.pk)
+        sr = notif.related_request
+        ntype = notif.notification_type
+        if request.user.is_admin() or request.user.is_staff_member():
+            if ntype == Notification.NotificationType.REQUEST_SUBMITTED:
+                return redirect("dashboard:admin_requests")
+            elif ntype == Notification.NotificationType.PAYMENT_UPLOADED:
+                return redirect("services:request_detail", pk=sr.pk)
+            return redirect("services:request_detail", pk=sr.pk)
+        else:
+            if ntype == Notification.NotificationType.COMPUTATION_READY:
+                return redirect("services:view_computation", pk=sr.pk)
+            elif ntype == Notification.NotificationType.DESLUDGING_SCHEDULED:
+                return redirect("services:request_detail", pk=sr.pk)
+            return redirect("services:request_detail", pk=sr.pk)
     return redirect("services:notification_list")
+
+
+@login_required
+def notifications_count_api(request):
+    """JSON API: return only unread count (for badge)."""
+    count = Notification.objects.filter(user=request.user, is_read=False).count()
+    return JsonResponse({"unread_count": count})
+
+
+@login_required
+@ensure_csrf_cookie
+def notifications_api(request):
+    """JSON API: return unread count and recent notifications (for dropdown details)."""
+    qs = Notification.objects.filter(user=request.user).order_by("-created_at")[:15]
+    unread_count = Notification.objects.filter(user=request.user, is_read=False).count()
+    items = []
+    for n in qs:
+        items.append({
+            "id": n.pk,
+            "message": n.message,
+            "type": n.notification_type,
+            "is_read": n.is_read,
+            "created_at": n.created_at.strftime("%b %d, %Y %I:%M %p"),
+            "mark_url": reverse("services:mark_notification_read", args=[n.pk]),
+        })
+    return JsonResponse({"unread_count": unread_count, "notifications": items})
+
+
+@login_required
+def mark_all_notifications_read(request):
+    """Mark all of the current user's notifications as read."""
+    if request.method == "POST":
+        Notification.objects.filter(user=request.user, is_read=False).update(is_read=True)
+        return JsonResponse({"ok": True})
+    return JsonResponse({"ok": False}, status=405)

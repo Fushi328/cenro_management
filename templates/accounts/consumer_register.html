@@ -315,7 +315,7 @@ document.addEventListener('DOMContentLoaded', function() {
     var clearPinBtn = document.getElementById('clearPinBtn');
 
     // ---- MAP SETUP ----
-    var BAYAWAN_CENTER = [9.366667, 122.800000];
+    var BAYAWAN_CENTER = [9.470, 122.821];
     var map = L.map('reg-map', { zoomControl: true }).setView(BAYAWAN_CENTER, 13);
     window._regMap = map;
 
@@ -426,20 +426,13 @@ document.addEventListener('DOMContentLoaded', function() {
     var GEOJSON_URL = "{% static 'data/barangay-boundaries.geojson' %}";
     fetch(GEOJSON_URL).then(function(r) { return r.ok ? r.json() : null; }).then(function(geojson) {
         if (!geojson || !geojson.features) return;
-        var features = geojson.features;
-        var preferred = features.find(function(f) { return (f.properties.name || '').toLowerCase().trim() === 'poblacion'; });
-        var off = { dLat: 0, dLon: 0 };
-        if (preferred) {
-            var ring = (preferred.geometry.type === 'Polygon') ? preferred.geometry.coordinates[0] : (preferred.geometry.coordinates[0] || [[]])[0];
-            if (ring && ring.length) {
-                var sLon = 0, sLat = 0;
-                ring.forEach(function(pt) { sLon += pt[0]; sLat += pt[1]; });
-                off = { dLon: BAYAWAN_CENTER[1] - sLon / ring.length, dLat: BAYAWAN_CENTER[0] - sLat / ring.length };
-            }
-        }
         L.geoJSON(geojson, {
-            coordsToLatLng: function(c) { return L.latLng(c[1] + off.dLat, c[0] + off.dLon); },
-            style: { color: '#2d8659', weight: 2, opacity: 0.5, fill: true, fillColor: '#2d8659', fillOpacity: 0.06, interactive: false }
+            style: function(feature) {
+                if (feature.properties && feature.properties.type === 'city_boundary') {
+                    return { color: '#2d8659', weight: 3, opacity: 0.6, fill: true, fillColor: '#2d8659', fillOpacity: 0.04, interactive: false };
+                }
+                return { color: '#2d8659', weight: 2, opacity: 0.5, fill: true, fillColor: '#2d8659', fillOpacity: 0.08, interactive: false };
+            }
         }).addTo(map);
     }).catch(function() {});
 });

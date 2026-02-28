@@ -1,0 +1,8 @@
+{% comment %}Partial for admin payment actions on a request{% endcomment %}
+{% if user.is_admin and sr.treasurer_receipt and sr.status == "AWAITING_PAYMENT" %}
+<form method="post" action="{% url 'dashboard:confirm_payment' sr.pk %}" class="inline-form" style="margin-left:8px;">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-green">Confirm Payment</button>
+</form>
+{% endif %}
+

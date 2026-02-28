@@ -17,10 +17,11 @@ def role_required(*roles: str) -> Callable:
             user: User = request.user  # type: ignore[assignment]
             if not user.is_authenticated:
                 return redirect("accounts:login")
-            if user.role not in roles:
+            # Superuser (super admin) can access any role-protected page
+            if not user.is_superuser and user.role not in roles:
                 messages.error(request, "You do not have permission to access this page.")
                 return redirect("dashboard:home")
-            if not user.is_approved and user.role != User.Role.ADMIN:
+            if not user.is_approved and user.role != User.Role.ADMIN and not user.is_superuser:
                 messages.warning(request, "Your account is pending approval from an administrator.")
                 return redirect("dashboard:home")
             return view_func(request, *args, **kwargs)

@@ -140,6 +140,36 @@ def admin_requests(request):
 
 @login_required
 @role_required("ADMIN")
+def confirm_payment(request, pk):
+    """Admin approves a customer's payment after verifying the uploaded receipt."""
+    service_request = get_object_or_404(ServiceRequest, pk=pk)
+    if request.method == "POST":
+        if not service_request.treasurer_receipt:
+            messages.error(request, "No payment receipt uploaded for this request.")
+            return redirect("services:request_detail", pk=pk)
+
+        service_request.status = ServiceRequest.Status.PAID
+        service_request.payment_confirmed_at = timezone.now()
+        service_request.save(update_fields=["status", "payment_confirmed_at"])
+
+        # Update computation payment status to PAID (unless it's a free BAWAD service)
+        computation = getattr(service_request, "computation", None)
+        if computation:
+            from dashboard.models import ServiceComputation
+
+            if computation.payment_status != ServiceComputation.PaymentStatus.FREE:
+                # Avoid triggering recalculation logic; direct update is enough.
+                ServiceComputation.objects.filter(pk=computation.pk).update(
+                    payment_status=ServiceComputation.PaymentStatus.PAID
+                )
+
+        messages.success(request, "Payment confirmed. Request marked as Paid.")
+        return redirect("services:request_detail", pk=pk)
+
+    return redirect("services:request_detail", pk=pk)
+
+@login_required
+@role_required("ADMIN")
 def approve_request(request, pk):
     """Move a submitted request to under review"""
     service_request = get_object_or_404(ServiceRequest, pk=pk)
@@ -307,9 +337,38 @@ def admin_computation(request):
             meals_transport = form.cleaned_data.get("meals_transport", Decimal("0")) or Decimal("0")
 
             from dashboard.models import ConfigurableRate
+            import math
             R = ConfigurableRate.get
 
-            desludging_fee = max(cubic_meters, R("min_cubic_meters")) * R("desludging_per_m3")
+            # Desludging fee: align with main computation rules
+            max_m3_per_trip = Decimal("5")
+            effective_m3 = max(cubic_meters, R("min_cubic_meters"))
+            desludging_per_m3 = R("desludging_per_m3")
+            second_trip_surcharge = R("second_trip_surcharge")
+
+            trips = max(1, math.ceil(float(effective_m3) / float(max_m3_per_trip)))
+            desludging_fee = Decimal("0")
+            desludging_breakdown = []
+            for t in range(trips):
+                # Trip 1: always 5 m³ at base rate; Trip 2+ use remaining volume at (base + surcharge)
+                if t == 0:
+                    vol_this_trip = max_m3_per_trip
+                else:
+                    remaining = effective_m3 - (t * max_m3_per_trip)
+                    vol_this_trip = min(max_m3_per_trip, max(Decimal("0"), remaining))
+                rate = desludging_per_m3 if t == 0 else (desludging_per_m3 + second_trip_surcharge)
+                amount = vol_this_trip * rate
+                desludging_fee += amount
+
+                if t == 0:
+                    label = f"Trip 1: 5 m³ × ₱{desludging_per_m3}/m³"
+                else:
+                    label = (
+                        f"Trip {t + 1}: {vol_this_trip} m³ × ₱{desludging_per_m3 + second_trip_surcharge}/m³ "
+                        f"(₱{desludging_per_m3} + ₱{second_trip_surcharge} surcharge)"
+                    )
+                desludging_breakdown.append({"label": label, "amount": amount})
+
             inspection_fee = R("inspection_fee")
 
             if location == "inside":
@@ -323,7 +382,8 @@ def admin_computation(request):
                 fixed_trucking = R("outside_trucking")
                 excess = max(Decimal("0"), distance - R("free_km"))
                 distance_cost = excess * R("per_km_rate") * 2
-                base_for_wear = fixed_trucking + distance_cost + desludging_fee
+                # Wear & tear: 20% of (trucking + distance cost) only
+                base_for_wear = fixed_trucking + distance_cost
                 wear_tear = base_for_wear * R("wear_tear_pct") / Decimal("100")
 
             if not meals_transport:
@@ -342,6 +402,7 @@ def admin_computation(request):
                 "distance_cost": distance_cost,
                 "wear_tear": wear_tear,
                 "meals_transport": meals_transport,
+                "desludging_breakdown": desludging_breakdown,
                 "total": total,
                 "prepared_by": request.user.get_full_name(),
             }

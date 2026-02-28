@@ -401,6 +401,8 @@
                     <label for="id_request_date">Request Date <span style="color:red">*</span></label>
                     {{ form.request_date }}
                     {% if form.request_date.errors %}<div class="form-error">{{ form.request_date.errors.0 }}</div>{% endif %}
+                    <div class="form-help-text">Business days only (Mon–Fri, excluding holidays).</div>
+                    <div class="form-error" id="dateWarning" style="display:none;"></div>
                 </div>
             </div>
 
@@ -445,12 +447,15 @@
                 <div class="form-help-text">Philippine mobile format: 09XX-XXX-XXXX</div>
             </div>
 
-            <div class="form-group">
+            <div class="form-group" id="bawadFormGroup">
                 <label>Connected to BAWAD? <span style="color:red">*</span></label>
                 <div class="radio-group" id="bawadRadioGroup">
                     {% for choice in form.connected_to_bawad %}
                     <label>{{ choice.tag }} {{ choice.choice_label }}</label>
                     {% endfor %}
+                </div>
+                <div class="form-help-text" id="bawadOutsideNote" style="display:none;color:#e67e22;margin-top:6px;">
+                    Location is outside Bayawan City — automatically set to non-BAWAD.
                 </div>
                 {% if form.connected_to_bawad.errors %}<div class="form-error">{{ form.connected_to_bawad.errors.0 }}</div>{% endif %}
             </div>
@@ -536,6 +541,17 @@ document.addEventListener('DOMContentLoaded', function() {
     var contactInput = document.getElementById('id_contact_number');
     var addressInput = document.querySelector('input[name="address"]');
 
+    function useDeviceLocation() {
+        if (!navigator.geolocation) return;
+        navigator.geolocation.getCurrentPosition(function(pos) {
+            var lat = pos.coords.latitude;
+            var lon = pos.coords.longitude;
+            if (typeof window.placeMarker === 'function') {
+                window.placeMarker(lat, lon, true);
+            }
+        }, function() {}, { enableHighAccuracy: true, timeout: 10000 });
+    }
+
     function setRequesterMode(mode) {
         btnOwner.classList.toggle('active', mode === 'owner');
         btnOther.classList.toggle('active', mode === 'other');
@@ -544,18 +560,17 @@ document.addEventListener('DOMContentLoaded', function() {
             if (contactInput && ownerProfile.contact_number) contactInput.value = ownerProfile.contact_number;
             if (addressInput && ownerProfile.address) { addressInput.value = ownerProfile.address; window.lastAutoAddress = ownerProfile.address; }
             if (ownerProfile.gps_latitude && ownerProfile.gps_longitude) {
-                var latField = document.querySelector('input[name="gps_latitude"]');
-                var lonField = document.querySelector('input[name="gps_longitude"]');
-                if (latField && lonField) {
-                    latField.value = ownerProfile.gps_latitude.toFixed(6);
-                    lonField.value = ownerProfile.gps_longitude.toFixed(6);
-                    if (typeof placeMarker === 'function') placeMarker(ownerProfile.gps_latitude, ownerProfile.gps_longitude, true);
+                if (typeof window.placeMarker === 'function') {
+                    window.placeMarker(ownerProfile.gps_latitude, ownerProfile.gps_longitude, true);
                 }
+            } else {
+                useDeviceLocation();
             }
         } else {
             if (clientNameInput) clientNameInput.value = '';
             if (contactInput) contactInput.value = '';
             if (addressInput) { addressInput.value = ''; window.lastAutoAddress = ''; }
+            useDeviceLocation();
         }
     }
 
@@ -564,6 +579,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     var radios = document.querySelectorAll('[name="connected_to_bawad"]');
     var proofSection = document.getElementById('bawadProofSection');
+    var bawadGroup = document.getElementById('bawadRadioGroup');
+
     function toggleBawad() {
         var val = document.querySelector('[name="connected_to_bawad"]:checked');
         if (val && val.value === 'YES') {
@@ -574,17 +591,70 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     radios.forEach(function(r) { r.addEventListener('change', toggleBawad); });
     toggleBawad();
+
+    // ---- Request date: business-day enforcement ----
+    var holidays = {{ holidays_json|safe }};
+    var dateInput = document.getElementById('id_request_date');
+    var dateWarning = document.getElementById('dateWarning');
+
+    function isHoliday(dateStr) {
+        return holidays.indexOf(dateStr) !== -1;
+    }
+    function nextBusinessDay(d) {
+        while (d.getDay() === 0 || d.getDay() === 6 || isHoliday(d.toISOString().slice(0, 10))) {
+            d = new Date(d.getTime() + 86400000);
+        }
+        return d;
+    }
+    function formatDate(d) {
+        var y = d.getFullYear();
+        var m = String(d.getMonth() + 1).padStart(2, '0');
+        var day = String(d.getDate()).padStart(2, '0');
+        return y + '-' + m + '-' + day;
+    }
+    function validateRequestDate() {
+        if (!dateInput || !dateInput.value) return;
+        var parts = dateInput.value.split('-');
+        var picked = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+        var day = picked.getDay();
+        if (day === 0 || day === 6 || isHoliday(dateInput.value)) {
+            var corrected = nextBusinessDay(new Date(picked.getTime()));
+            dateInput.value = formatDate(corrected);
+            var reason = (day === 0 || day === 6) ? 'a weekend' : 'a holiday';
+            if (dateWarning) {
+                dateWarning.textContent = 'Selected date falls on ' + reason + '. Moved to next business day: ' + formatDate(corrected) + '.';
+                dateWarning.style.display = 'block';
+                dateWarning.style.color = '#e67e22';
+            }
+        } else {
+            if (dateWarning) dateWarning.style.display = 'none';
+        }
+    }
+    if (dateInput) dateInput.addEventListener('change', validateRequestDate);
+
+    var bawadOutsideNote = document.getElementById('bawadOutsideNote');
+    window.enforceBawadForLocation = function(withinCity) {
+        if (!withinCity) {
+            radios.forEach(function(r) { r.checked = (r.value === 'NO'); r.disabled = true; });
+            proofSection.classList.remove('visible');
+            if (bawadGroup) bawadGroup.style.opacity = '0.5';
+            if (bawadOutsideNote) bawadOutsideNote.style.display = 'block';
+        } else {
+            radios.forEach(function(r) { r.disabled = false; });
+            if (bawadGroup) bawadGroup.style.opacity = '1';
+            if (bawadOutsideNote) bawadOutsideNote.style.display = 'none';
+            toggleBawad();
+        }
+    };
 });
 </script>
 <script>
     const REVERSE_GEOCODE_URL = "{% url 'services:reverse_geocode' %}";
     const GEOJSON_URL = "{% static 'data/barangay-boundaries.geojson' %}";
-    const BAYAWAN_CENTER = { lat: 9.366667, lon: 122.800000 };
-    const SERVICE_BOUNDS = { lat: 0.05, lon: 0.05 };
+    const BAYAWAN_CENTER = { lat: 9.470, lon: 122.821 };
 
     let barangayGeoJSON = null;
-    let barangayGeoJSONOffset = { dLat: 0, dLon: 0 };
-    let barangayCentroids = [];
+    let cityBoundaryFeature = null;
     let mapInstance = null;
     let marker = null;
     let isLocationValid = false;
@@ -592,71 +662,19 @@ document.addEventListener('DOMContentLoaded', function() {
     window.lastAutoAddress = window.lastAutoAddress || '';
     let geocodeSeq = 0;
 
-    function computeGeoJSONOffset(geojson) {
-        const features = geojson.features || [];
-        const centroidFromFeature = (feature) => {
-            if (!feature || !feature.geometry) return null;
-            const geom = feature.geometry;
-            let ring = null;
-            if (geom.type === 'Polygon' && geom.coordinates && geom.coordinates.length) ring = geom.coordinates[0];
-            else if (geom.type === 'MultiPolygon' && geom.coordinates && geom.coordinates.length) ring = geom.coordinates[0][0];
-            if (!ring || !ring.length) return null;
-            let sumLon = 0, sumLat = 0;
-            for (const pt of ring) { sumLon += Number(pt[0]); sumLat += Number(pt[1]); }
-            return { lon: sumLon / ring.length, lat: sumLat / ring.length };
-        };
-        const preferred = features.find(f => {
-            const name = (f.properties && f.properties.name ? String(f.properties.name) : '').trim().toLowerCase();
-            return name === 'poblacion';
-        });
-        if (preferred) {
-            const centroid = centroidFromFeature(preferred);
-            if (centroid && Number.isFinite(centroid.lon) && Number.isFinite(centroid.lat))
-                return { dLon: BAYAWAN_CENTER.lon - centroid.lon, dLat: BAYAWAN_CENTER.lat - centroid.lat };
-        }
-        let minLon = Infinity, minLat = Infinity, maxLon = -Infinity, maxLat = -Infinity;
-        const bump = (lon, lat) => {
-            const x = Number(lon), y = Number(lat);
-            if (!Number.isFinite(x) || !Number.isFinite(y)) return;
-            minLon = Math.min(minLon, x); maxLon = Math.max(maxLon, x);
-            minLat = Math.min(minLat, y); maxLat = Math.max(maxLat, y);
-        };
-        const walk = (coords, type) => {
-            if (!coords) return;
-            if (type === 'Polygon') for (const ring of coords) for (const pt of ring) bump(pt[0], pt[1]);
-            else if (type === 'MultiPolygon') for (const poly of coords) for (const ring of poly) for (const pt of ring) bump(pt[0], pt[1]);
-        };
-        for (const f of features) { const g = f.geometry || {}; walk(g.coordinates, g.type); }
-        if (!Number.isFinite(minLon) || !Number.isFinite(minLat)) return { dLat: 0, dLon: 0 };
-        return { dLon: BAYAWAN_CENTER.lon - (minLon + maxLon) / 2, dLat: BAYAWAN_CENTER.lat - (minLat + maxLat) / 2 };
-    }
-
     async function loadBarangayGeoJSON() {
         try {
             const response = await fetch(GEOJSON_URL);
             if (response.ok) {
                 barangayGeoJSON = await response.json();
-                barangayGeoJSONOffset = computeGeoJSONOffset(barangayGeoJSON);
-                barangayCentroids = computeBarangayCentroids(barangayGeoJSON);
+                for (const f of (barangayGeoJSON.features || [])) {
+                    if (f.properties && f.properties.type === 'city_boundary') {
+                        cityBoundaryFeature = f;
+                        break;
+                    }
+                }
             }
         } catch (err) { console.warn('Failed to load barangay GeoJSON:', err); }
-    }
-
-    function computeBarangayCentroids(geojson) {
-        const results = [];
-        for (const feature of (geojson.features || [])) {
-            const props = feature.properties || {};
-            const name = props.name;
-            const geom = feature.geometry || {};
-            let ring = null;
-            if (geom.type === 'Polygon' && geom.coordinates && geom.coordinates.length) ring = geom.coordinates[0];
-            else if (geom.type === 'MultiPolygon' && geom.coordinates && geom.coordinates.length) ring = geom.coordinates[0][0];
-            if (!name || !ring || !ring.length) continue;
-            let sumLon = 0, sumLat = 0;
-            for (const pt of ring) { sumLon += Number(pt[0]); sumLat += Number(pt[1]); }
-            results.push({ name: String(name), lon: sumLon / ring.length, lat: sumLat / ring.length });
-        }
-        return results;
     }
 
     function pointInRing(x, y, ring) {
@@ -683,15 +701,17 @@ document.addEventListener('DOMContentLoaded', function() {
         return false;
     }
 
+    function isInsideBayawanCity(lat, lon) {
+        if (cityBoundaryFeature) return pointInFeature(lon, lat, cityBoundaryFeature);
+        return false;
+    }
+
     function detectBarangayFromGeoJSON(lat, lon) {
         if (!barangayGeoJSON || !barangayGeoJSON.features) return null;
-        const pLon = lon - barangayGeoJSONOffset.dLon, pLat = lat - barangayGeoJSONOffset.dLat;
-        const hasTurf = typeof turf !== 'undefined' && turf.booleanPointInPolygon;
-        const turfPoint = hasTurf ? turf.point([pLon, pLat]) : null;
         for (const feature of barangayGeoJSON.features) {
+            if (feature.properties && feature.properties.type === 'city_boundary') continue;
             try {
-                if (hasTurf) { if (turf.booleanPointInPolygon(turfPoint, feature)) return feature.properties.name; }
-                else if (pointInFeature(pLon, pLat, feature)) return feature.properties.name;
+                if (pointInFeature(lon, lat, feature)) return feature.properties.name;
             } catch (err) { continue; }
         }
         return null;
@@ -766,21 +786,30 @@ document.addEventListener('DOMContentLoaded', function() {
         const { latField, lonField, barangayInput, addressInput } = fields;
         latField.value = lat.toFixed(6);
         lonField.value = lon.toFixed(6);
+
+        const withinCityBoundary = isInsideBayawanCity(lat, lon);
         const detectedBarangay = detectBarangayFromGeoJSON(lat, lon);
+        const quickLabel = withinCityBoundary ? (detectedBarangay || 'Bayawan City') : null;
+
         isLocationValid = true;
-        if (barangayInput) { barangayInput.value = detectedBarangay || ''; barangayInput.dispatchEvent(new Event('change', { bubbles: true })); }
-        updateStatusUI(Boolean(detectedBarangay), detectedBarangay);
-        updatePinInfoCard(lat, lon, detectedBarangay, 'Detecting address...', Boolean(detectedBarangay));
+        if (barangayInput) { barangayInput.value = quickLabel || ''; barangayInput.dispatchEvent(new Event('change', { bubbles: true })); }
+        updateStatusUI(withinCityBoundary, quickLabel);
+        updatePinInfoCard(lat, lon, quickLabel, 'Detecting address...', withinCityBoundary);
+        if (typeof window.enforceBawadForLocation === 'function') window.enforceBawadForLocation(withinCityBoundary);
+
         const seq = ++geocodeSeq;
         const payload = await reverseGeocode(lat, lon);
         if (seq !== geocodeSeq) return;
+
         const serverBarangay = payload && payload.barangay ? payload.barangay : null;
         const serverWithin = payload && typeof payload.within_bayawan === 'boolean' ? payload.within_bayawan : null;
-        const withinCity = Boolean(detectedBarangay) || (serverWithin === true && Boolean(serverBarangay));
-        const finalBarangay = withinCity ? (detectedBarangay || serverBarangay) : 'Outside Bayawan City';
+        const withinCity = withinCityBoundary || (serverWithin === true);
+        const finalBarangay = withinCity ? (detectedBarangay || serverBarangay || 'Bayawan City') : 'Outside Bayawan City';
+
         isLocationValid = true;
         if (barangayInput) { barangayInput.value = finalBarangay || ''; barangayInput.dispatchEvent(new Event('change', { bubbles: true })); }
         updateStatusUI(withinCity, finalBarangay);
+        if (typeof window.enforceBawadForLocation === 'function') window.enforceBawadForLocation(withinCity);
         const formatted = formatAddressFromReverseGeocode(payload);
         if (formatted) {
             if (addressInput && (!addressTouched || !addressInput.value || addressInput.value === window.lastAutoAddress)) {
@@ -806,10 +835,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
         loadBarangayGeoJSON().then(function() {
             if (barangayGeoJSON && barangayGeoJSON.features) {
-                var off = barangayGeoJSONOffset;
                 L.geoJSON(barangayGeoJSON, {
-                    coordsToLatLng: function(coords) { return L.latLng(coords[1] + off.dLat, coords[0] + off.dLon); },
-                    style: { color: '#1abc9c', weight: 2, opacity: 0.6, fill: true, fillColor: '#1abc9c', fillOpacity: 0.08, interactive: false }
+                    style: function(feature) {
+                        if (feature.properties && feature.properties.type === 'city_boundary') {
+                            return { color: '#1abc9c', weight: 3, opacity: 0.7, fill: true, fillColor: '#1abc9c', fillOpacity: 0.05, interactive: false };
+                        }
+                        return { color: '#2980b9', weight: 2, opacity: 0.5, fill: true, fillColor: '#2980b9', fillOpacity: 0.10, interactive: false };
+                    }
                 }).addTo(mapInstance);
             }
             if (marker) {
@@ -856,6 +888,7 @@ document.addEventListener('DOMContentLoaded', function() {
             wizardForm.addEventListener('submit', function(evt) {
                 if (!latField.value || !lonField.value) { evt.preventDefault(); alert('Please drop a pin on the map before continuing.'); return; }
                 if (!barangayInput.value || !barangayInput.value.trim()) barangayInput.value = 'Outside Bayawan City';
+                document.querySelectorAll('[name="connected_to_bawad"]').forEach(function(r) { r.disabled = false; });
             });
         }
 

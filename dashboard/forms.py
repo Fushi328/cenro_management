@@ -86,29 +86,60 @@ class QuickComputationForm(forms.Form):
     category = forms.ChoiceField(choices=CATEGORY_CHOICES, widget=forms.Select(attrs={'class': 'form-control'}))
     location = forms.ChoiceField(choices=LOCATION_CHOICES, widget=forms.Select(attrs={'class': 'form-control'}))
     cubic_meters = forms.DecimalField(
+        min_value=Decimal('0'),
         widget=forms.NumberInput(attrs={
             'class': 'form-control',
             'step': '0.01',
+            'min': '0',
             'placeholder': 'Cubic meters',
         })
     )
     distance_km = forms.DecimalField(
         required=False,
+        min_value=Decimal('0'),
         widget=forms.NumberInput(attrs={
             'class': 'form-control',
             'step': '0.01',
-            'placeholder': 'Distance (km) - if outside Bayawan',
+            'min': '0',
+            'placeholder': 'Distance (km)',
         })
     )
     meals_transport = forms.DecimalField(
         required=False,
+        min_value=Decimal('0'),
         initial=Decimal('0'),
         widget=forms.NumberInput(attrs={
             'class': 'form-control',
-            'step': '0.01',
-            'placeholder': 'Meals & Transport allowance',
+            'step': '200',
+            'min': '0',
+            'placeholder': 'Meals & Transport allowance (increments of ₱200)',
         })
     )
+
+    def clean_cubic_meters(self):
+        value = self.cleaned_data.get('cubic_meters')
+        if value is not None and value < 0:
+            raise forms.ValidationError("Cubic meters cannot be negative.")
+        return value
+
+    def clean_distance_km(self):
+        value = self.cleaned_data.get('distance_km')
+        if value in (None, ''):
+            return Decimal('0')
+        if value < 0:
+            raise forms.ValidationError("Distance cannot be negative.")
+        return value
+
+    def clean_meals_transport(self):
+        value = self.cleaned_data.get('meals_transport')
+        if value in (None, ''):
+            return Decimal('0')
+        if value < 0:
+            raise forms.ValidationError("Meals & Transport allowance cannot be negative.")
+        # Must be in increments of ₱200
+        if (value % Decimal('200')) != 0:
+            raise forms.ValidationError("Meals & Transport allowance must be in increments of ₱200.")
+        return value
 
 
 class MembershipSearchForm(forms.Form):

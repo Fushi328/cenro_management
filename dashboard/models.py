@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from decimal import Decimal
 from django.conf import settings
 from django.db import models
@@ -24,7 +25,7 @@ class ConfigurableRate(models.Model):
         "meals_per_head": (Decimal("200"), "Meals & transportation allowance per person"),
         "inspection_fee": (Decimal("150"), "Inspection fee"),
         "per_km_rate": (Decimal("20"), "Rate per km beyond free distance"),
-        "free_km": (Decimal("20"), "Free trucking distance (km)"),
+        "free_km": (Decimal("20"), "Free trucking distance from CENRO office (km)"),
         "wear_tear_pct": (Decimal("20"), "Wear and tear percentage (outside only)"),
         "bawad_free_limit_m3": (Decimal("5"), "BAWAD free service limit (cubic meters)"),
         "bawad_cycle_years": (Decimal("4"), "BAWAD cycle period (years)"),
@@ -122,6 +123,40 @@ class ServiceComputation(models.Model):
     def __str__(self) -> str:
         return f"Computation for {self.service_request} - ₱{self.total_charge}"
 
+    def get_desludging_breakdown(self):
+        """Return a list of {label, amount} for detailed desludging fee breakdown.
+        Trip 1: max 5 m³ × base rate. Trip 2+: remaining volume × (base + ₱360 surcharge).
+        """
+        R = ConfigurableRate.get
+        desludging_per_m3 = R("desludging_per_m3")
+        second_trip_surcharge = R("second_trip_surcharge")
+        min_m3 = R("min_cubic_meters")
+        max_m3_per_trip = Decimal("5")
+        effective_m3 = max(self.cubic_meters, min_m3)
+        rate_extra = desludging_per_m3 + second_trip_surcharge
+        lines = []
+        for t in range(self.trips):
+            if t == 0:
+                vol_this_trip = max_m3_per_trip  # First trip always 5 m³ (min and max)
+            else:
+                remaining = effective_m3 - (t * max_m3_per_trip)
+                vol_this_trip = min(max_m3_per_trip, max(Decimal("0"), remaining))
+            if vol_this_trip <= 0:
+                continue
+            rate = desludging_per_m3 if t == 0 else rate_extra
+            amt = vol_this_trip * rate
+            if t == 0:
+                lines.append({
+                    "label": f"Trip 1: 5 m³ × ₱{desludging_per_m3}/m³ (min 5 m³, max 5 m³)",
+                    "amount": amt,
+                })
+            else:
+                lines.append({
+                    "label": f"Trip {t + 1}: {vol_this_trip} m³ × ₱{rate_extra}/m³ (₱{desludging_per_m3} + ₱{second_trip_surcharge} surcharge)",
+                    "amount": amt,
+                })
+        return lines
+
     def calculate_charges(self):
         """Calculate all charges based on the correct business rules."""
         from services.models import ServiceRequest
@@ -140,6 +175,10 @@ class ServiceComputation(models.Model):
 
         effective_m3 = max(self.cubic_meters, min_m3)
 
+        # 1 trip = max 5 m³; more than 5 m³ auto-adjusts to additional trips
+        max_m3_per_trip = Decimal("5")
+        self.trips = max(1, math.ceil(float(self.cubic_meters) / float(max_m3_per_trip)))
+
         # Fixed trucking based on service type and location
         if self.is_outside_bayawan:
             self.fixed_trucking = R("outside_trucking")
@@ -148,13 +187,16 @@ class ServiceComputation(models.Model):
         else:
             self.fixed_trucking = R("residential_trucking_within")
 
-        # Desludging fee: 500/m3 for trip 1, 860/m3 for trips 2+
-        if self.trips <= 1:
-            self.desludging_fee = effective_m3 * desludging_per_m3
-        else:
-            first_trip = effective_m3 * desludging_per_m3
-            extra_trips = (self.trips - 1) * effective_m3 * (desludging_per_m3 + second_trip_surcharge)
-            self.desludging_fee = first_trip + extra_trips
+        # Desludging fee: Trip 1 = always 5 m³ × 500/m³; Trip 2+ = remaining m³ × 860/m³
+        self.desludging_fee = Decimal("0")
+        for t in range(self.trips):
+            if t == 0:
+                vol_this_trip = max_m3_per_trip  # First trip always 5 m³ (min and max)
+            else:
+                remaining = effective_m3 - (t * max_m3_per_trip)
+                vol_this_trip = min(max_m3_per_trip, max(Decimal("0"), remaining))
+            rate = desludging_per_m3 if t == 0 else (desludging_per_m3 + second_trip_surcharge)
+            self.desludging_fee += vol_this_trip * rate
 
         # Distance charge: excess beyond free_km
         dist = self.distance_km or Decimal("0")

@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Edit Computation - Request #{{ sr.id }}{% endblock %}
+{% block content %}
+<style>
+    .form-container { max-width: 700px; margin: 30px auto; padding: 20px; }
+    .form-card { background: white; border: 2px solid #1abc9c; border-radius: 10px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
+    .form-card h2 { color: #2d3142; border-bottom: 2px solid #1abc9c; padding-bottom: 12px; margin-bottom: 8px; }
+    .form-card .subtitle { color: #666; font-size: 14px; margin-bottom: 24px; }
+    .form-group { margin-bottom: 18px; }
+    .form-group label { display: block; margin-bottom: 6px; font-weight: 600; color: #2d3142; }
+    .form-group input, .form-group select { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; }
+    .form-group input:focus, .form-group select:focus { outline: none; border-color: #1abc9c; }
+    .form-check { display: flex; align-items: center; gap: 8px; }
+    .form-check input { width: auto; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 600px) { .form-row { grid-template-columns: 1fr; } }
+    .form-error { color: #e74c3c; font-size: 13px; margin-top: 4px; }
+    .btn-row { display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px; flex-wrap: wrap; }
+    .btn { padding: 10px 24px; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block; }
+    .btn-primary { background: #1abc9c; color: white; }
+    .btn-primary:hover { background: #16a085; }
+    .btn-secondary { background: #e0e0e0; color: #2d3142; }
+    .btn-secondary:hover { background: #d0d0d0; }
+</style>
+<div class="form-container">
+    <div class="form-card">
+        <h2>Edit Computation</h2>
+        <p class="subtitle">Request #{{ sr.id }} &bull; {{ sr.get_service_type_display }} &bull; {{ sr.client_name }}</p>
+        <p class="subtitle" style="margin-top: -12px;">Charges are recalculated automatically when you save.</p>
+
+        <form method="post">
+            {% csrf_token %}
+            {% if form.non_field_errors %}
+            <div class="form-error" style="margin-bottom: 12px;">{{ form.non_field_errors }}</div>
+            {% endif %}
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="id_cubic_meters">{{ form.cubic_meters.label }}</label>
+                    {{ form.cubic_meters }}
+                    {% if form.cubic_meters.errors %}<div class="form-error">{{ form.cubic_meters.errors.0 }}</div>{% endif %}
+                </div>
+                <div class="form-group">
+                    <label>Trips</label>
+                    <p style="margin:0; padding: 10px 12px; background: #f5f5f5; border-radius: 5px; font-size: 14px;">{{ comp.trips }} <span style="color:#666;">(auto: max 5 m³ per trip)</span></p>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="id_personnel_count">{{ form.personnel_count.label }}</label>
+                    {{ form.personnel_count }}
+                    {% if form.personnel_count.errors %}<div class="form-error">{{ form.personnel_count.errors.0 }}</div>{% endif %}
+                </div>
+                <div class="form-group">
+                    <label for="id_payment_status">{{ form.payment_status.label }}</label>
+                    {{ form.payment_status }}
+                    {% if form.payment_status.errors %}<div class="form-error">{{ form.payment_status.errors.0 }}</div>{% endif %}
+                </div>
+            </div>
+
+            <div class="form-group">
+                <div class="form-check">
+                    {{ form.is_outside_bayawan }}
+                    <label for="id_is_outside_bayawan" style="margin:0;">{{ form.is_outside_bayawan.label }}</label>
+                </div>
+                {% if form.is_outside_bayawan.errors %}<div class="form-error">{{ form.is_outside_bayawan.errors.0 }}</div>{% endif %}
+            </div>
+
+            <div class="form-group">
+                <label for="id_distance_km">{{ form.distance_km.label }}</label>
+                {{ form.distance_km }}
+                {% if form.distance_km.help_text %}<p style="font-size:12px;color:#666;margin-top:4px;">{{ form.distance_km.help_text }}</p>{% endif %}
+                {% if form.distance_km.errors %}<div class="form-error">{{ form.distance_km.errors.0 }}</div>{% endif %}
+            </div>
+
+            <div class="btn-row">
+                <a href="{% url 'services:view_computation' sr.pk %}" class="btn btn-secondary">Cancel</a>
+                <button type="submit" class="btn btn-primary">Save &amp; Recalculate</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
