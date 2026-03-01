@@ -1,0 +1,4 @@
+# Prevent requirements.txt from being saved as UTF-16 (fixes Render pip error)
+[requirements.txt]
+charset = utf-8
+end_of_line = lf

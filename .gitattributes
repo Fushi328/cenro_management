@@ -1,0 +1,2 @@
+# Ensure requirements.txt is always stored and checked out as UTF-8-friendly text (no UTF-16)
+requirements.txt text eol=lf
