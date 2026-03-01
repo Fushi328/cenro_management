@@ -10,8 +10,7 @@ services:
   - type: web
     runtime: python
     name: cenro-management
-    buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput
-    preDeployCommand: python manage.py migrate --noinput
+    buildCommand: bash build.sh
     startCommand: gunicorn cenro_mgmt.wsgi:application
     envVars:
       - key: DATABASE_URL
@@ -20,3 +19,7 @@ services:
           property: connectionString
       - key: SECRET_KEY
         generateValue: true
+      - key: CSRF_TRUSTED_ORIGINS
+        value: "https://cenro-management-7.onrender.com"
+      - key: DEBUG
+        value: "False"
