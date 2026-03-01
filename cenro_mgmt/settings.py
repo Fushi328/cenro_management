@@ -5,11 +5,11 @@ from decouple import config
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = "replace-me-in-production"
+SECRET_KEY = config("SECRET_KEY", default="replace-me-in-production")
 
-DEBUG = True
+DEBUG = config("DEBUG", default=True, cast=bool)
 
-ALLOWED_HOSTS: list[str] = ["*"]
+ALLOWED_HOSTS = [s.strip() for s in config("ALLOWED_HOSTS", default="*").split(",")]
 
 INSTALLED_APPS = [
     "django.contrib.admin",

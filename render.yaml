@@ -1,0 +1,22 @@
+# Render Blueprint: Django 5 + PostgreSQL
+# Connect this repo in Render; it will create the web service and database.
+
+databases:
+  - name: cenro_db
+    databaseName: cenro_management
+    plan: free
+
+services:
+  - type: web
+    runtime: python
+    name: cenro-management
+    buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput
+    preDeployCommand: python manage.py migrate --noinput
+    startCommand: gunicorn cenro_mgmt.wsgi:application
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: cenro_db
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
