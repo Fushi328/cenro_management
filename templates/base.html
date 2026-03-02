@@ -17,8 +17,8 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 </head>
-{% comment %}Admin = role ADMIN or superuser; use role/superuser so mini menu is hidden reliably.{% endcomment %}
-<body class="{% if not user.is_authenticated %}consumer-view{% elif user.role == 'ADMIN' or user.is_superuser %}admin-view{% else %}consumer-view{% endif %}">
+{% comment %}Short-circuit: do not access user.role when user is not authenticated.{% endcomment %}
+<body class="{% if not user.is_authenticated %}consumer-view{% elif user.is_authenticated and user.role == 'ADMIN' or user.is_superuser %}admin-view{% else %}consumer-view{% endif %}">
     {% if not user.is_authenticated or user.role != 'ADMIN' and not user.is_superuser %}
     <!-- Top Navigation Bar (consumer / non-admin) -->
     <header class="top-nav">

@@ -48,33 +48,37 @@ def login_view(request):
 
 
 def consumer_register(request):
-    if request.method == "POST":
-        form = ConsumerRegistrationForm(request.POST)
-        if form.is_valid():
-            try:
-                with transaction.atomic():
-                    user = form.save()
-                login(request, user)
-                messages.success(request, "Registration successful! Welcome to EcoTrack.")
-                if user.role == User.Role.ADMIN:
-                    return redirect("dashboard:admin_dashboard")
-                return redirect("dashboard:home")
-            except IntegrityError as e:
-                logger.exception("Registration IntegrityError: %s", e)
-                if "username" in str(e).lower() or "unique" in str(e).lower():
-                    form.add_error("username", "This username is already taken. Please choose another.")
-                elif "email" in str(e).lower():
-                    form.add_error("email", "An account with this email already exists.")
-                else:
-                    form.add_error(None, "Username or email already in use. Please choose different values.")
-            except Exception as e:
-                logger.exception("Registration failed: %s", e)
-                messages.error(request, "An error occurred during registration. Please try again.")
+    try:
+        if request.method == "POST":
+            form = ConsumerRegistrationForm(request.POST)
+            if form.is_valid():
+                try:
+                    with transaction.atomic():
+                        user = form.save()
+                    login(request, user)
+                    messages.success(request, "Registration successful! Welcome to EcoTrack.")
+                    if user.role == User.Role.ADMIN:
+                        return redirect("dashboard:admin_dashboard")
+                    return redirect("dashboard:home")
+                except IntegrityError as e:
+                    logger.exception("Registration IntegrityError: %s", e)
+                    if "username" in str(e).lower() or "unique" in str(e).lower():
+                        form.add_error("username", "This username is already taken. Please choose another.")
+                    elif "email" in str(e).lower():
+                        form.add_error("email", "An account with this email already exists.")
+                    else:
+                        form.add_error(None, "Username or email already in use. Please choose different values.")
+                except Exception as e:
+                    logger.exception("Registration failed: %s", e)
+                    messages.error(request, "An error occurred during registration. Please try again.")
+            else:
+                messages.error(request, "Please fix the errors below and try again.")
         else:
-            messages.error(request, "Please fix the errors below and try again.")
-    else:
-        form = ConsumerRegistrationForm()
-    return render(request, "accounts/consumer_register.html", {"form": form})
+            form = ConsumerRegistrationForm()
+        return render(request, "accounts/consumer_register.html", {"form": form})
+    except Exception as e:
+        logger.exception("Consumer register view error (check Render logs): %s", e)
+        raise
 
 
 @login_required
