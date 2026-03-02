@@ -18,30 +18,52 @@ def _debug():
 
 DEBUG = _debug()
 
-# Hostnames only (NO https://). Comma-separated on Render.
-# Default allows localhost and any *.onrender.com host, so new services
-# like cenro-management-dzeg.onrender.com work even if ALLOWED_HOSTS
-# is not explicitly set yet.
+# -------------------------
+# Hosts & CSRF (Render-safe)
+# -------------------------
+
+# Hostnames only (NO http/https). Comma-separated in env.
+# Safe defaults for local dev and any *.onrender.com host.
 try:
-    ALLOWED_HOSTS = config(
+    _allowed_hosts_env = config(
         "ALLOWED_HOSTS",
         default="localhost,127.0.0.1,.onrender.com",
         cast=Csv(),
     )
 except Exception:
-    ALLOWED_HOSTS = ["localhost", "127.0.0.1", ".onrender.com"]
+    _allowed_hosts_env = ["localhost", "127.0.0.1", ".onrender.com"]
 
-# Full origins WITH https://. Comma-separated on Render.
-# Django supports wildcard CSRF origins like https://*.onrender.com
+# Render exposes the external hostname via this env var.
+# Example: cenro-management-dzeg.onrender.com
+_render_host = os.environ.get("RENDER_EXTERNAL_HOSTNAME") or config(
+    "RENDER_EXTERNAL_HOSTNAME", default=None
+)
+
+ALLOWED_HOSTS = list(_allowed_hosts_env)
+if _render_host and _render_host not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(_render_host)
+
+# Full origins WITH https://. Comma-separated in env.
+# Django supports wildcard CSRF origins like https://*.onrender.com.
 try:
-    _csv_origins = config(
+    _csrf_origins_env = config(
         "CSRF_TRUSTED_ORIGINS",
         default="https://*.onrender.com",
     )
 except Exception:
-    _csv_origins = "https://*.onrender.com"
+    _csrf_origins_env = "https://*.onrender.com"
 
-CSRF_TRUSTED_ORIGINS = [s.strip() for s in _csv_origins.split(",") if s.strip()]
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip()
+    for origin in _csrf_origins_env.split(",")
+    if origin.strip()
+]
+
+# Also trust the exact Render external hostname, if present.
+if _render_host:
+    _render_origin = f"https://{_render_host}"
+    if _render_origin not in CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS.append(_render_origin)
 
 
 # Recommended when behind Render/Cloudflare proxy (helps Django know request is HTTPS)
