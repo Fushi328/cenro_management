@@ -40,6 +40,12 @@ _render_host = os.environ.get("RENDER_EXTERNAL_HOSTNAME") or config(
 )
 
 ALLOWED_HOSTS = list(_allowed_hosts_env)
+
+# Always allow any subdomain of onrender.com, regardless of env var contents.
+if ".onrender.com" not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(".onrender.com")
+
+# Also allow the exact Render hostname if present.
 if _render_host and _render_host not in ALLOWED_HOSTS:
     ALLOWED_HOSTS.append(_render_host)
 
@@ -51,13 +57,17 @@ try:
         default="https://*.onrender.com",
     )
 except Exception:
-    _csrf_origins_env = "https://*.onrender.com"
+_csrf_origins_env = "https://*.onrender.com"
 
 CSRF_TRUSTED_ORIGINS = [
     origin.strip()
     for origin in _csrf_origins_env.split(",")
     if origin.strip()
 ]
+
+# Always trust wildcard https://*.onrender.com even if env overrides.
+if "https://*.onrender.com" not in CSRF_TRUSTED_ORIGINS:
+    CSRF_TRUSTED_ORIGINS.append("https://*.onrender.com")
 
 # Also trust the exact Render external hostname, if present.
 if _render_host:
