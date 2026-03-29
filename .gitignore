@@ -11,7 +11,7 @@ ENV/
 
 # Django
 *.log
-db.sqlite3
+# db.sqlite3 — tracked for shared dev data (collaborators pull same DB)
 db.sqlite3-journal
 /media
 /staticfiles

@@ -44,7 +44,7 @@ pip install -r requirements.txt
 
 ### 3. Database configuration
 
-By default, the project uses **SQLite** (`db.sqlite3` in the project root). No setup required.
+By default, the project uses **SQLite** (`db.sqlite3` in the project root). The repository includes a **shared dev** `db.sqlite3` so collaborators get the same sample data after clone or pull—no need to build an empty database from scratch. After pulling changes that add migrations, run `python manage.py migrate` to apply any new schema steps. Avoid committing conflicting local DB edits; treat one branch’s file as canonical when merging.
 
 To use **PostgreSQL** instead, set `USE_POSTGRES=1` and:
 
@@ -63,6 +63,8 @@ Example (PowerShell):
 python manage.py migrate
 python manage.py createsuperuser
 ```
+
+If you are using the committed SQLite file, users and data may already exist; run `createsuperuser` only when you need a new admin account.
 
 ### 5. Run the development server
 
