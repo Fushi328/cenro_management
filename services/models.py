@@ -144,6 +144,13 @@ class ServiceRequest(models.Model):
                 return s[len(prefix):].strip()
         return ""
 
+    def get_status_display(self) -> str:
+        """Override default display to handle Grass Cutting custom scheduled status string."""
+        base = dict(self.Status.choices).get(self.status, self.status)
+        if self.status == self.Status.DESLUDGING_SCHEDULED and self.service_type == self.ServiceType.GRASS_CUTTING:
+            return "Grasscutting Scheduled"
+        return base
+
     @property
     def was_cancelled_by_customer(self) -> bool:
         """True if cancellation was initiated by the customer (or submitter) in the portal."""

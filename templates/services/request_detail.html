@@ -406,7 +406,7 @@
         </div>
         <p style="font-size:13px;color:#666;margin-top:8px;">
             Please note: Schedule may change due to operational or weather conditions.
-            You will receive a notification if there are any updates to this desludging schedule.
+            You will receive a notification if there are any updates to this {% if sr.service_type == 'GRASS_CUTTING' %}service{% else %}desludging{% endif %} schedule.
         </p>
     </div>
     {% endif %}

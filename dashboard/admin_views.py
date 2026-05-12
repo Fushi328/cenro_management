@@ -1619,7 +1619,8 @@ def schedule_desludging(request, pk):
 
         # Append schedule info to notes for display/history.
         existing_notes = service_request.notes or ""
-        line = f"Desludging scheduled on {sched_date} at {sched_time}."
+        service_name = "grass cutting" if service_request.service_type == ServiceRequest.ServiceType.GRASS_CUTTING else "desludging"
+        line = f"{service_name.capitalize()} scheduled on {sched_date} at {sched_time}."
         if has_existing_schedule and changed and change_reason:
             line += f" Reason: {change_reason}"
         service_request.notes = (existing_notes + "\n" if existing_notes else "") + line
@@ -1638,7 +1639,7 @@ def schedule_desludging(request, pk):
         Notification.objects.create(
             user=service_request.consumer,
             message=(
-                f"Your desludging has been scheduled for {sched_date} at {sched_time}. "
+                f"Your {service_name} has been scheduled for {sched_date} at {sched_time}. "
                 + schedule_note
                 + reason_suffix
             ),
@@ -1653,7 +1654,7 @@ def schedule_desludging(request, pk):
             Notification.objects.create(
                 user=service_request.requested_by,
                 message=(
-                    f"Desludging for {service_request.client_name} has been scheduled for "
+                    f"{service_name.capitalize()} for {service_request.client_name} has been scheduled for "
                     f"{sched_date} at {sched_time}. "
                     + schedule_note
                     + reason_suffix
@@ -1664,7 +1665,7 @@ def schedule_desludging(request, pk):
 
         messages.success(
             request,
-            "Desludging date and time scheduled; notifications were sent to the customer"
+            f"{service_name.capitalize()} date and time scheduled; notifications were sent to the customer"
             + (
                 " and the account that submitted the request."
                 if service_request.requested_by_id

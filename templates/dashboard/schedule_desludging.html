@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Schedule Desludging{% endblock %}
+{% block title %}Schedule {% if service_request.service_type == 'GRASS_CUTTING' %}Service{% else %}Desludging{% endif %}{% endblock %}
 {% block content %}
 <style>
     .form-container { max-width: 600px; margin: 40px auto; padding: 20px; }
@@ -16,17 +16,17 @@
 </style>
 <div class="form-container">
     <div class="form-card">
-        <h2>Schedule Desludging</h2>
+        <h2>Schedule {% if service_request.service_type == 'GRASS_CUTTING' %}Grass Cutting{% else %}Desludging{% endif %}</h2>
         <p style="color:#666;margin-bottom:20px;">{{ service_request.get_service_type_display }} &bull; {{ service_request.client_name }} &bull; {{ service_request.barangay }}</p>
         <form method="post">
             {% csrf_token %}
             <div class="form-group">
-                <label>Desludging Date <span style="color:red">*</span></label>
+                <label>{% if service_request.service_type == 'GRASS_CUTTING' %}Service Date{% else %}Desludging Date{% endif %} <span style="color:red">*</span></label>
                 {# initial_date is ISO Y-m-d string from the view; do not pipe it through |date (strings break the value). #}
                 <input type="date" name="desludging_date" value="{% if initial_date %}{{ initial_date }}{% elif service_request.scheduled_desludging_date %}{{ service_request.scheduled_desludging_date|date:'Y-m-d' }}{% endif %}" required>
             </div>
             <div class="form-group">
-                <label>Desludging Time <span style="color:red">*</span></label>
+                <label>{% if service_request.service_type == 'GRASS_CUTTING' %}Service Time{% else %}Desludging Time{% endif %} <span style="color:red">*</span></label>
                 <select name="desludging_time" id="desludgingTime" required>
                     <option value="">-- Select Time --</option>
                     <option value="9:00 AM" {% if initial_time == "9:00 AM" %}selected{% endif %}>9:00 AM</option>
