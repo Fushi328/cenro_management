@@ -3750,13 +3750,6 @@ def complete_request(request, pk):
     service_request = get_object_or_404(ServiceRequest, pk=pk)
     user = request.user
 
-    if service_request.service_type == ServiceRequest.ServiceType.GRASS_CUTTING:
-        messages.error(
-            request,
-            "Grass Cutting requests are marked completed only after payment verification by an administrator.",
-        )
-        return redirect("services:request_detail", pk=pk)
-
     is_office = user.is_admin() or user.is_staff_member()
     is_customer_party = service_request.consumer_id == user.id or (
         service_request.requested_by_id and service_request.requested_by_id == user.id
