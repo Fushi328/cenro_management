@@ -396,7 +396,7 @@
     <!-- Scheduling -->
     {% if sr.scheduled_desludging_date %}
     <div class="section-card">
-        <h3>Desludging Schedule</h3>
+        <h3>{% if sr.service_type == 'GRASS_CUTTING' %}Service Schedule{% else %}Desludging Schedule{% endif %}</h3>
         <div class="info-item">
             <label>Scheduled Date &amp; Time</label>
             <span style="font-size:16px;font-weight:600;">
@@ -430,6 +430,8 @@
                         Pay at the Treasurer's Office, then upload your official payment receipt using the button below.
                     {% elif sr.status == "GRASS_PAYMENT_AWAITING_VERIFICATION" %}
                         Payment receipt uploaded — waiting for administrator verification.
+                    {% elif sr.status == "DESLUDGING_SCHEDULED" %}
+                        Payment verified — request is now in scheduling queue.
                     {% elif sr.status == "COMPLETED" %}
                         Verified — service may proceed as scheduled.
                     {% elif sr.status == "CANCELLED" %}
@@ -495,11 +497,11 @@
             {% endif %}
 
             {% if sr.status == "PAID" %}
-            <a href="{% url 'dashboard:schedule_desludging' sr.pk %}" class="btn btn-blue">Schedule Desludging</a>
+            <a href="{% url 'dashboard:schedule_desludging' sr.pk %}" class="btn btn-blue">{% if sr.service_type == 'GRASS_CUTTING' %}Schedule Grass Cutting{% else %}Schedule Desludging{% endif %}</a>
             {% endif %}
 
             {% if sr.status == "DESLUDGING_SCHEDULED" %}
-            <a href="{% url 'dashboard:schedule_desludging' sr.pk %}" class="btn btn-blue">Change Desludging Schedule</a>
+            <a href="{% url 'dashboard:schedule_desludging' sr.pk %}" class="btn btn-blue">{% if sr.service_type == 'GRASS_CUTTING' %}Change Schedule{% else %}Change Desludging Schedule{% endif %}</a>
             <form method="post" action="{% url 'services:complete_request' sr.pk %}" class="inline-form">
                 {% csrf_token %}
                 <button type="submit" class="btn btn-green">Mark Completed</button>

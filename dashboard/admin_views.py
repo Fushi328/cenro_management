@@ -762,7 +762,7 @@ def confirm_grass_request(request, pk):
         messages.error(request, "No payment receipt uploaded for this request.")
         return redirect("services:request_detail", pk=pk)
 
-    service_request.status = ServiceRequest.Status.COMPLETED
+    service_request.status = ServiceRequest.Status.DESLUDGING_SCHEDULED
     service_request.payment_confirmed_at = timezone.now()
     service_request.save(update_fields=["status", "payment_confirmed_at", "updated_at"])
 
@@ -770,7 +770,7 @@ def confirm_grass_request(request, pk):
         user=service_request.consumer,
         message=(
             f"Your Grass Cutting request #{service_request.id} has been verified. "
-            "Payment is confirmed and your service may proceed per the agreed schedule."
+            "Payment is confirmed and your service will be scheduled."
         ),
         notification_type=Notification.NotificationType.STATUS_CHANGE,
         related_request=service_request,
@@ -780,12 +780,12 @@ def confirm_grass_request(request, pk):
             user_id=service_request.requested_by_id,
             message=(
                 f"Grass Cutting request #{service_request.id} that you submitted for "
-                f"{service_request.client_name} has been verified and confirmed."
+                f"{service_request.client_name} has been verified and will be scheduled."
             ),
             notification_type=Notification.NotificationType.STATUS_CHANGE,
             related_request=service_request,
         )
-    messages.success(request, "Grass Cutting request confirmed and marked as completed.")
+    messages.success(request, "Grass Cutting request confirmed and moved to Scheduling.")
     return redirect("services:request_detail", pk=pk)
 
 
