@@ -28,11 +28,15 @@
             {% csrf_token %}
             {# Clicks on the native file control bubble here; avoid calling .click() again or the picker opens twice. #}
             <div class="upload-area" onclick="if (!event.target.closest('input[type=file]')) { document.getElementById('id_treasurer_receipt').click(); }">
-                <div style="font-size:40px;margin-bottom:8px;">&#128196;</div>
-                <div>Upload your receipt from the City Treasurer's Office</div>
-                <div style="font-size:12px;color:#777;margin-top:4px;">
-                    You can choose an existing file or use your device camera to take a photo. PDF, JPG, PNG, WEBP, GIF, BMP, or TIFF — max 20MB.
+                <div id="upload-placeholder">
+                    <div style="font-size:40px;margin-bottom:8px;">&#128196;</div>
+                    <div>Upload your receipt from the City Treasurer's Office</div>
+                    <div style="font-size:12px;color:#777;margin-top:4px;">
+                        You can choose an existing file or use your device camera to take a photo. PDF, JPG, PNG, WEBP, GIF, BMP, or TIFF — max 20MB.
+                    </div>
                 </div>
+                <img id="image-preview" src="#" alt="Receipt Preview" style="display: none; max-width: 100%; max-height: 300px; margin: 0 auto; border-radius: 8px;">
+                <div id="file-name-preview" style="display: none; margin-top: 10px; font-weight: bold; color: #1abc9c;"></div>
                 <input id="id_treasurer_receipt" type="file" name="treasurer_receipt" accept="image/*,application/pdf,.tif,.tiff" capture="environment" required onclick="event.stopPropagation();">
             </div>
             <div class="btn-row">
@@ -42,4 +46,35 @@
         </form>
     </div>
 </div>
+
+<script>
+    document.getElementById('id_treasurer_receipt').addEventListener('change', function(event) {
+        const file = event.target.files[0];
+        const placeholder = document.getElementById('upload-placeholder');
+        const imgPreview = document.getElementById('image-preview');
+        const fileNamePreview = document.getElementById('file-name-preview');
+
+        if (file) {
+            placeholder.style.display = 'none';
+            if (file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    imgPreview.src = e.target.result;
+                    imgPreview.style.display = 'block';
+                    fileNamePreview.style.display = 'none';
+                }
+                reader.readAsDataURL(file);
+            } else {
+                // Not an image (e.g. PDF)
+                imgPreview.style.display = 'none';
+                fileNamePreview.textContent = 'Selected file: ' + file.name;
+                fileNamePreview.style.display = 'block';
+            }
+        } else {
+            placeholder.style.display = 'block';
+            imgPreview.style.display = 'none';
+            fileNamePreview.style.display = 'none';
+        }
+    });
+</script>
 {% endblock %}
